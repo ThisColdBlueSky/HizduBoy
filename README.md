@@ -1,3 +1,71 @@
+# Positron Kernel for POCO X4 Pro 5G / Redmi Note 11 Pro 5G (`veux` / `peux`)
+
+Custom Linux kernel based on Android Common Kernel (ACK) 5.4 for Snapdragon 695 / SM6375 devices.
+
+- **Target Devices**: POCO X4 Pro 5G (`veux`), Redmi Note 11 Pro 5G / Pro+ 5G (`peux`)
+- **Kernel Version**: `5.4.302~positron`
+- **Compiler**: ClangBuiltLinux LLVM 22.1.7 (AOSP / Linux kernel.org prebuilts)
+- **Defconfig**: `arch/arm64/configs/veux_defconfig`
+- **Installer**: AnyKernel3 with device-specific dynamic HAL patching
+
+---
+
+## Architecture & Design
+
+### 1. Dual KernelSU & Normal Mechanism
+The kernel source includes built-in KernelSU support via manual VFS hooks (`fs/exec.c`, `fs/open.c`, `fs/read_write.c`, `fs/stat.c`):
+- **Normal Flavor**: Compiled with `CONFIG_KSU` disabled (`# CONFIG_KSU is not set`).
+- **KernelSU Flavor**: Compiled with `CONFIG_KSU=y`.
+- **Unified Dual-Mode Package**: An AnyKernel3 zip containing the standard unrooted `Image`, combined with a binary delta `ksu.bdf` (generated using `bsdiff Image Image_KSU ksu.bdf`). If a `KSU_UNLOCK` trigger exists in `$AKHOME` during flashing, AnyKernel patches the image using `bspatch` before flashing to the `boot` partition.
+
+### 2. AnyKernel3 Packaging & Xiaomi Dynamic HAL Patching
+AnyKernel3 dynamically detects stock MIUI/HyperOS vs AOSP custom ROM HALs in `/vendor`:
+- Dynamically patches sound codec nodes (`aw88261` / `fs1962`) in `dtb`.
+- Corrects display panel physical dimensions for stock display composer.
+- Fixes NFC (`pn557`) and IR SPI compatible properties.
+- Wipes the redundant `dtbo` partition (`erase_dtbo`) to avoid conflicts.
+
+---
+
+## Building Locally
+
+### Prerequisites
+Install compilation dependencies and Clang:
+```bash
+sudo apt-get update
+sudo apt-get install -y bc bison build-essential ccache curl flex \
+  gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi git libssl-dev libelf-dev \
+  lz4 xz-utils zip bsdiff python3
+```
+
+### Build Commands
+Using the helper script:
+```bash
+# Build both Standard and KernelSU versions + Unified zip:
+./build.sh --both
+
+# Build KernelSU version only:
+./build.sh --ksu
+
+# Build Standard version only:
+./build.sh --normal
+```
+
+---
+
+## GitHub Actions Automated CI/CD
+
+An automated workflow is provided at `.github/workflows/build.yml`:
+- **Triggers**:
+  - Manual trigger via **Actions > Build Positron Kernel > Run workflow** (`workflow_dispatch`), allowing selection between `both`, `ksu`, or `normal`.
+  - Automatic build on `git push` to `main`.
+- **Outputs**:
+  - Automatically builds using ClangBuiltLinux LLVM 22.1.7.
+  - Generates ready-to-flash AnyKernel3 `.zip` archives.
+  - Automatically creates GitHub Releases with SHA-256 checksums.
+
+---
+
 # How do I submit patches to Android Common Kernels
 
 1. BEST: Make all of your changes to upstream Linux. If appropriate, backport to the stable releases.
