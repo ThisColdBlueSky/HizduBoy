@@ -37,21 +37,32 @@ jobs:
       fail-fast: false
       matrix:
         variant: [normal, ksu]
-    if: |
-      github.event_name == 'push' ||
-      inputs.variant == 'both' ||
-      inputs.variant == '' ||
-      inputs.variant == matrix.variant
 
     steps:
+      - name: Determine if variant should run
+        id: check_variant
+        run: |
+          TARGET="${{ github.event.inputs.variant }}"
+          CURRENT="${{ matrix.variant }}"
+          if [ -n "$TARGET" ] && [ "$TARGET" != "both" ] && [ "$TARGET" != "$CURRENT" ]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Skipping $CURRENT because target variant is $TARGET"
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Running build for $CURRENT"
+          fi
+
       - name: Free Disk Space
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
 
       - name: Checkout Source Code
+        if: steps.check_variant.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Environment Variables
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           BUILD_DATE=$(date -u +%Y%m%d)
           BUILD_TIME=$(date -u +%Y%m%d-%H%M)
@@ -61,6 +72,7 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
 
       - name: Install Build Dependencies
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -69,6 +81,7 @@ jobs:
             git libssl-dev libelf-dev lz4 xz-utils zip bsdiff python3
 
       - name: Download & Set up Clang (LLVM 22.1.7)
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           mkdir -p llvm
           echo "Downloading ClangBuiltLinux LLVM 22.1.7..."
@@ -76,6 +89,7 @@ jobs:
           echo "$GITHUB_WORKSPACE/llvm/bin" >> $GITHUB_PATH
 
       - name: Setup ccache
+        if: steps.check_variant.outputs.should_run == 'true'
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.variant }}-${{ github.sha }}
@@ -83,6 +97,7 @@ jobs:
           max-size: 4G
 
       - name: Configure Kernel
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
@@ -106,6 +121,7 @@ jobs:
             olddefconfig
 
       - name: Compile Kernel & DTB
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
@@ -120,6 +136,7 @@ jobs:
             Image dtbs
 
       - name: Verify Build Outputs
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           if [ ! -f out/arch/arm64/boot/Image ]; then
             echo "::error::Kernel Image was not generated!"
@@ -137,6 +154,7 @@ jobs:
           echo "DTB_PATH=$DTB_PATH" >> $GITHUB_ENV
 
       - name: Package AnyKernel3 Flashable Zip
+        if: steps.check_variant.outputs.should_run == 'true'
         run: |
           VARIANT="${{ matrix.variant }}"
           if [ "$VARIANT" = "ksu" ]; then
@@ -168,6 +186,7 @@ jobs:
           cp "$DTB_PATH" build_output/dtb
 
       - name: Upload Build Artifacts
+        if: steps.check_variant.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: positron-veux-${{ matrix.variant }}
@@ -182,8 +201,8 @@ jobs:
       contents: write
     if: |
       always() &&
-      (needs.build.result == 'success') &&
-      (github.event_name == 'push' || inputs.create_release == true || inputs.create_release == 'true')
+      needs.build.result == 'success' &&
+      (github.event_name == 'push' || github.event.inputs.create_release != 'false')
 
     steps:
       - name: Checkout Source Code
