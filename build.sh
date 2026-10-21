@@ -96,6 +96,9 @@ compile_flavor() {
         CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
         "$DEFCONFIG"
 
+    echo "--> Enabling ThinLTO (CONFIG_THINLTO=y)"
+    bash "$ROOT_DIR/scripts/config" --file "$out_dir/.config" -e THINLTO
+
     # 2. Toggle KSU
     if [ "$flavor" = "ksu" ]; then
         echo "--> Enabling KernelSU (CONFIG_KSU=y)"
