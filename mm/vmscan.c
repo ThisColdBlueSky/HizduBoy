@@ -655,6 +655,9 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 		    !(shrinker->flags & SHRINKER_NONSLAB))
 			continue;
 
+		if (!down_read_trylock(&shrinker->del_rwsem))
+			continue;
+
 		ret = do_shrink_slab(&sc, shrinker, priority);
 		if (ret == SHRINK_EMPTY) {
 			clear_bit(i, map->map);
@@ -681,6 +684,8 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
 				memcg_set_shrinker_bit(memcg, nid, i);
 		}
 		freed += ret;
+
+		up_read(&shrinker->del_rwsem);
 
 		if (rwsem_is_contended(&shrinker_rwsem)) {
 			freed = freed ? : 1;
