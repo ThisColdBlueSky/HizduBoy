@@ -1,10 +1,9 @@
-# Positron Kernel for POCO X4 Pro 5G / Redmi Note 11 Pro 5G (`veux` / `peux`)
+# HizduBoy Kernel for POCO X4 Pro 5G / Redmi Note 11 Pro 5G (`veux` / `peux`)
 
 Custom Linux kernel based on Android Common Kernel (ACK) 5.4 for Snapdragon 695 / SM6375 devices.
 
 - **Target Devices**: POCO X4 Pro 5G (`veux`), Redmi Note 11 Pro 5G / Pro+ 5G (`peux`)
-- **Kernel Version**: `5.4.302~positron`
-- **Compiler**: ClangBuiltLinux LLVM 22.1.7 (AOSP / Linux kernel.org prebuilts)
+- **Kernel Version**: `5.4.302~HizduBoy`
 - **Defconfig**: `arch/arm64/configs/veux_defconfig`
 - **Installer**: AnyKernel3 with device-specific dynamic HAL patching
 
@@ -57,10 +56,9 @@ Using the helper script:
 
 An automated workflow is provided at `.github/workflows/build.yml`:
 - **Triggers**:
-  - Manual trigger via **Actions > Build Positron Kernel > Run workflow** (`workflow_dispatch`), allowing selection between `both`, `ksu`, or `normal`.
+  - Manual trigger via **Actions > Build HizduBoy Kernel > Run workflow** (`workflow_dispatch`), allowing selection between `both`, `ksu`, or `normal`.
   - Automatic build on `git push` to `main`.
 - **Outputs**:
-  - Automatically builds using ClangBuiltLinux LLVM 22.1.7.
   - Generates ready-to-flash AnyKernel3 `.zip` archives.
   - Automatically creates GitHub Releases with SHA-256 checksums.
 

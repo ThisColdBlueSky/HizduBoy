@@ -1,4 +1,4 @@
-name: Build Positron Kernel
+name: Build HizduBoy Kernel
 
 on:
   workflow_dispatch:
@@ -175,9 +175,9 @@ jobs:
         run: |
           VARIANT="${{ matrix.variant }}"
           if [ "$VARIANT" = "ksu" ]; then
-            ZIP_NAME="positron-veux-${BUILD_DATE}-KSU.zip"
+            ZIP_NAME="HizduBoy-veux-${BUILD_DATE}-KSU.zip"
           else
-            ZIP_NAME="positron-veux-${BUILD_DATE}-Standard.zip"
+            ZIP_NAME="HizduBoy-veux-${BUILD_DATE}-Standard.zip"
           fi
 
           PACKAGE_DIR="package_${VARIANT}"
@@ -206,7 +206,7 @@ jobs:
         if: steps.check_variant.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: positron-veux-${{ matrix.variant }}
+          name: HizduBoy-veux-${{ matrix.variant }}
           path: build_output/*
           retention-days: 7
 
@@ -265,7 +265,7 @@ jobs:
                      "$UNIFIED_DIR"/META-INF/com/google/android/update-binary \
                      "$UNIFIED_DIR"/tools/* 2>/dev/null || true
 
-            UNIFIED_ZIP="positron-veux-${BUILD_DATE}-Unified.zip"
+            UNIFIED_ZIP="HizduBoy-veux-${BUILD_DATE}-Unified.zip"
             cd "$UNIFIED_DIR"
             zip -r9 "../release_assets/${UNIFIED_ZIP}" * -x ".git*" "README.md"
             cd ..
@@ -285,22 +285,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: Positron Kernel for POCO X4 Pro 5G (${{ env.TAG_NAME }})
+          name: HizduBoy Kernel for POCO X4 Pro 5G (${{ env.TAG_NAME }})
           draft: false
           prerelease: false
           files: release_assets/*
           body: |
-            ## Positron Kernel for POCO X4 Pro 5G (`veux` / `peux`)
+            ## HizduBoy Kernel for POCO X4 Pro 5G (`veux` / `peux`)
             
             - **Commit:** `${{ github.sha }}`
             - **Branch:** `${{ github.ref_name }}`
             - **Toolchain:** ClangBuiltLinux LLVM 22.1.7
-            - **Kernel Release:** `5.4.302~positron`
+            - **Kernel Release:** `5.4.302~HizduBoy`
             
             ### Included Packages:
-            - **`positron-veux-*-Standard.zip`**: Non-root clean kernel.
-            - **`positron-veux-*-KSU.zip`**: KernelSU root support pre-compiled into `Image`.
-            - **`positron-veux-*-Unified.zip`**: Dual-mode package using `ksu.bdf` delta patch (matches upstream release format).
+            - **`HizduBoy-veux-*-Standard.zip`**: Non-root clean kernel.
+            - **`HizduBoy-veux-*-KSU.zip`**: KernelSU root support pre-compiled into `Image`.
+            - **`HizduBoy-veux-*-Unified.zip`**: Dual-mode package using `ksu.bdf` delta patch (matches upstream release format).
             
             ### Flashing Instructions:
             1. Boot into custom recovery (TWRP / OrangeFox).
