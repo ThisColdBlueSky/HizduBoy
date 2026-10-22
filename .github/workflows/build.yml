@@ -20,6 +20,7 @@ on:
   push:
     branches:
       - main
+      - memcg-fix
     paths-ignore:
       - '**.md'
       - '.gitignore'
@@ -132,6 +133,9 @@ jobs:
           make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             olddefconfig
+
+          echo "=== Resolved memory and debug configs in out/.config ==="
+          grep -E "CONFIG_MEMCG|CONFIG_DEBUG_KERNEL|CONFIG_DEBUG_LIST|CONFIG_DEBUG_ATOMIC_SLEEP" out/.config || true
 
       - name: Compile Kernel & DTB
         if: steps.check_variant.outputs.should_run == 'true'

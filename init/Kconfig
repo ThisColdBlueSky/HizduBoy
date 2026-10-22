@@ -897,7 +897,7 @@ config MEMCG_SWAP_ENABLED
 	  then swapaccount=0 does the trick).
 
 config MEMCG_KMEM
-	bool
+	bool "Kernel memory accounting"
 	depends on MEMCG && !SLOB
 	default y
 
