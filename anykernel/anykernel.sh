@@ -52,3 +52,11 @@ flash_boot;
 erase_dtbo;
 ## end of dtbo install
 
+# Install boot crash logger to post-fs-data.d if /data is mounted
+if [ -d /data/adb ]; then
+    mkdir -p /data/adb/post-fs-data.d;
+    cp -f tools/00_boot_logger.sh /data/adb/post-fs-data.d/00_boot_logger.sh 2>/dev/null;
+    chmod 0755 /data/adb/post-fs-data.d/00_boot_logger.sh 2>/dev/null;
+fi;
+
+
