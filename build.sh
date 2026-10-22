@@ -77,7 +77,7 @@ fi
 
 export ARCH=arm64
 export SUBARCH=arm64
-export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-rhythmcache}"
+export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-ThisColdBlueSky}"
 export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-$(hostname 2>/dev/null || echo android)}"
 
 mkdir -p "$DIST_DIR"

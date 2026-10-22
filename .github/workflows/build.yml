@@ -143,7 +143,7 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           export PATH="$GITHUB_WORKSPACE/llvm/bin:$PATH"
-          export KBUILD_BUILD_USER="rhythmcache"
+          export KBUILD_BUILD_USER="ThisColdBlueSky"
           export KBUILD_BUILD_HOST="github-actions"
 
           make -j$(nproc --all) O=out ARCH=arm64 \
