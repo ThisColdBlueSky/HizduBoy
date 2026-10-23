@@ -21,6 +21,7 @@ on:
     branches:
       - main
       - memcg-fix
+      - monitor-mode
     paths-ignore:
       - '**.md'
       - '.gitignore'
