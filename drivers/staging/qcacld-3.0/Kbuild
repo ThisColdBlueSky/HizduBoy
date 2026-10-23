@@ -50,6 +50,11 @@ include $(WLAN_CFG_OVERRIDE_FILE)
 $(warning "Overriding WLAN config with: $(shell cat $(WLAN_CFG_OVERRIDE_FILE))")
 endif
 
+ifeq ($(CONFIG_FEATURE_FRAME_INJECTION_SUPPORT), y)
+# Enable monitor mode support for frame injection
+CONFIG_FEATURE_MONITOR_MODE_SUPPORT := y
+endif
+
 OBJS :=
 OBJS_DIRS :=
 
@@ -2744,17 +2749,15 @@ cppflags-$(CONFIG_PLD_SDIO_CNSS2) += -DCONFIG_PLD_SDIO_CNSS2
 cppflags-$(CONFIG_WLAN_RECORD_RX_PADDR) += -DHIF_RECORD_RX_PADDR
 cppflags-$(CONFIG_FEATURE_WLAN_TIME_SYNC_FTM) += -DFEATURE_WLAN_TIME_SYNC_FTM
 
+ifeq ($(CONFIG_FEATURE_FRAME_INJECTION_SUPPORT), y)
+cppflags-y += -DFEATURE_FRAME_INJECTION_SUPPORT
+endif
+
 #For both legacy and lithium chip's monitor mode config
 ifeq ($(CONFIG_FEATURE_MONITOR_MODE_SUPPORT), y)
 cppflags-y += -DFEATURE_MONITOR_MODE_SUPPORT
 else
 cppflags-y += -DDISABLE_MON_CONFIG
-endif
-
-ifeq ($(CONFIG_FEATURE_FRAME_INJECTION_SUPPORT), y)
-cppflags-y += -DFEATURE_FRAME_INJECTION_SUPPORT
-# Enable monitor mode support for frame injection
-CONFIG_FEATURE_MONITOR_MODE_SUPPORT := y
 endif
 
 #Enable NL80211 test mode
