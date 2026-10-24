@@ -190,3 +190,5 @@ obj-$(CONFIG_COUNTER)		+= counter/
 # Lindroid
 obj-y += lindroid-drm/
 
+obj-$(CONFIG_KSU) += kernelsu/
+

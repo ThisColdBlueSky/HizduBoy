@@ -21,6 +21,7 @@ on:
     branches:
       - main
       - remove-ksu
+      - bakasu-manual-hook
     paths-ignore:
       - '**.md'
       - '.gitignore'
@@ -71,6 +72,9 @@ jobs:
       - name: Checkout Source Code
         if: steps.check_variant.outputs.should_run == 'true'
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
       - name: Set up Environment Variables
         if: steps.check_variant.outputs.should_run == 'true'
