@@ -20,8 +20,7 @@ on:
   push:
     branches:
       - main
-      - memcg-fix
-      - monitor-mode
+      - remove-ksu
     paths-ignore:
       - '**.md'
       - '.gitignore'

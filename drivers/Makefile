@@ -187,9 +187,6 @@ obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_INTERCONNECT)	+= interconnect/
 obj-$(CONFIG_COUNTER)		+= counter/
 
-# KernelSU
-obj-$(CONFIG_KSU) += kernelsu/
-
 # Lindroid
 obj-y += lindroid-drm/
 
