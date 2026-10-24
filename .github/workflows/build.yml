@@ -299,15 +299,10 @@ jobs:
             
             - **Commit:** `${{ github.sha }}`
             - **Branch:** `${{ github.ref_name }}`
-            - **Toolchain:** ClangBuiltLinux LLVM 22.1.7
             - **Kernel Release:** `5.4.302~HizduBoy`
             
             ### Included Packages:
             - **`HizduBoy-veux-*-Standard.zip`**: Non-root clean kernel.
             - **`HizduBoy-veux-*-KSU.zip`**: KernelSU root support pre-compiled into `Image`.
             - **`HizduBoy-veux-*-Unified.zip`**: Dual-mode package using `ksu.bdf` delta patch (matches upstream release format).
-            
-            ### Flashing Instructions:
-            1. Boot into custom recovery (TWRP / OrangeFox).
-            2. Flash your preferred zip package.
-            3. Reboot system.
+
