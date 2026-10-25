@@ -1006,8 +1006,14 @@ static void tcp_sum_lost(struct tcp_sock *tp, struct sk_buff *skb)
 	__u8 sacked = TCP_SKB_CB(skb)->sacked;
 
 	if (!(sacked & TCPCB_LOST) ||
-	    ((sacked & TCPCB_LOST) && (sacked & TCPCB_SACKED_RETRANS)))
+	    ((sacked & TCPCB_LOST) && (sacked & TCPCB_SACKED_RETRANS))) {
+		struct sock *sk = (struct sock *)tp;
+		const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
+
 		tp->lost += tcp_skb_pcount(skb);
+		if (ca_ops->skb_marked_lost)
+			ca_ops->skb_marked_lost(sk, skb);
+	}
 }
 
 static void tcp_skb_mark_lost(struct tcp_sock *tp, struct sk_buff *skb)
