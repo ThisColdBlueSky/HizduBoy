@@ -872,6 +872,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 extern int kern_addr_valid(unsigned long addr);
 
 #ifdef CONFIG_ARM64_HW_AFDBM
+#include <asm/cpufeature.h>
 #define arch_has_hw_pte_young arch_has_hw_pte_young
 static inline bool arch_has_hw_pte_young(void)
 {
