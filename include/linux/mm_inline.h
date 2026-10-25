@@ -63,6 +63,19 @@ static inline int lru_gen_from_seq(unsigned long seq)
 	return seq % MAX_NR_GENS;
 }
 
+static inline int lru_hist_from_seq(unsigned long seq)
+{
+	return seq % NR_HIST_GENS;
+}
+
+static inline int lru_tier_from_refs(int refs)
+{
+	VM_BUG_ON(refs > BIT(LRU_REFS_WIDTH));
+
+	/* see the comment on MAX_NR_TIERS */
+	return order_base_2(refs + 1);
+}
+
 static inline bool lru_gen_is_active(struct lruvec *lruvec, int gen)
 {
 	unsigned long max_seq = lruvec->lrugen.max_seq;
@@ -142,7 +155,7 @@ static inline bool lru_gen_add_page(struct lruvec *lruvec, struct page *page, bo
 		VM_BUG_ON_PAGE(new_flags & LRU_GEN_MASK, page);
 
 		/* see the comment on MIN_NR_GENS */
-		new_flags &= ~(LRU_GEN_MASK | BIT(PG_active));
+		new_flags &= ~(LRU_GEN_MASK | LRU_REFS_MASK | BIT(PG_active));
 		new_flags |= (gen + 1UL) << LRU_GEN_PGOFF;
 	} while (cmpxchg(&page->flags, old_flags, new_flags) != old_flags);
 
@@ -177,6 +190,7 @@ static inline bool lru_gen_del_page(struct lruvec *lruvec, struct page *page, bo
 			new_flags &= ~(BIT(PG_referenced) | BIT(PG_reclaim));
 		else if (lru_gen_is_active(lruvec, gen))
 			new_flags |= BIT(PG_active);
+		new_flags &= ~(LRU_REFS_MASK | LRU_REFS_FLAGS);
 	} while (cmpxchg(&page->flags, old_flags, new_flags) != old_flags);
 
 	lru_gen_update_size(lruvec, page, gen, -1);
