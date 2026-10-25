@@ -3195,7 +3195,12 @@ static bool positive_ctrl_err(struct ctrl_pos *sp, struct ctrl_pos *pv)
  *                          the aging
  ******************************************************************************/
 
-static int page_update_gen(struct page *page, int gen)
+static inline bool is_exec_file_page(struct page *page, unsigned long vm_flags)
+{
+	return (vm_flags & VM_EXEC) && page_is_file_cache(page);
+}
+
+static int page_update_gen(struct page *page, int gen, unsigned long vm_flags)
 {
 	unsigned long old_flags, new_flags;
 
@@ -3209,6 +3214,8 @@ static int page_update_gen(struct page *page, int gen)
 		new_flags &= ~LRU_GEN_MASK;
 		new_flags |= (gen + 1UL) << LRU_GEN_PGOFF;
 		new_flags &= ~(LRU_REFS_MASK | LRU_REFS_FLAGS);
+		if (is_exec_file_page(page, vm_flags))
+			new_flags |= BIT(PG_workingset);
 	} while (new_flags != old_flags &&
 		 cmpxchg(&page->flags, old_flags, new_flags) != old_flags);
 
@@ -3424,7 +3431,7 @@ restart:
 		    !(PageAnon(page) && PageSwapBacked(page) && !PageSwapCache(page)))
 			set_page_dirty(page);
 
-		old_gen = page_update_gen(page, new_gen);
+		old_gen = page_update_gen(page, new_gen, walk->vma ? walk->vma->vm_flags : 0);
 		if (old_gen >= 0 && old_gen != new_gen)
 			update_batch_size(priv, page, old_gen, new_gen);
 	}
@@ -3515,7 +3522,7 @@ static void walk_pmd_range_locked(pud_t *pud, unsigned long next, struct vm_area
 		    !(PageAnon(page) && PageSwapBacked(page) && !PageSwapCache(page)))
 			set_page_dirty(page);
 
-		old_gen = page_update_gen(page, new_gen);
+		old_gen = page_update_gen(page, new_gen, vma ? vma->vm_flags : 0);
 		if (old_gen >= 0 && old_gen != new_gen)
 			update_batch_size(priv, page, old_gen, new_gen);
 next:
@@ -4137,7 +4144,7 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 		if (page_memcg_rcu(page) != memcg)
 			continue;
 
-		old_gen = page_update_gen(page, new_gen);
+		old_gen = page_update_gen(page, new_gen, pvmw->vma ? pvmw->vma->vm_flags : 0);
 		if (old_gen < 0 || old_gen == new_gen)
 			continue;
 
