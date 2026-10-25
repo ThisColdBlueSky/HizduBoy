@@ -378,6 +378,59 @@ struct lru_gen_struct {
 	atomic_long_t refaulted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
 };
 
+enum {
+	MM_PTE_TOTAL,	/* total leaf entries */
+	MM_PTE_OLD,	/* old leaf entries */
+	MM_PTE_YOUNG,	/* young leaf entries */
+	MM_PMD_TOTAL,	/* total non-leaf entries */
+	MM_PMD_FOUND,	/* non-leaf entries found in Bloom filters */
+	MM_PMD_ADDED,	/* non-leaf entries added to Bloom filters */
+	NR_MM_STATS,
+};
+
+/* mnemonic codes for the mm stats above */
+#define MM_STAT_CODES		"toydfa"
+
+#define NR_BLOOM_FILTERS	2
+
+struct lru_gen_mm_state {
+	/* the sequence number tracking the highest gen producing max_seq */
+	unsigned long seq;
+	/* the head of the mm_struct list */
+	struct list_head *head;
+	/* the tail of the mm_struct list */
+	struct list_head *tail;
+	/* the number of concurrent page table walkers */
+	int nr_walkers;
+	/* the Bloom filters for non-leaf entries */
+	unsigned long *filters[NR_BLOOM_FILTERS];
+	/* the stats for page table walker */
+	unsigned long stats[NR_HIST_GENS][NR_MM_STATS];
+	/* the wait queue for page table walkers */
+	wait_queue_head_t wait;
+};
+
+struct lru_gen_mm_walk {
+	/* the lruvec under reclaim */
+	struct lruvec *lruvec;
+	/* the target generation number */
+	unsigned long max_seq;
+	/* can't swap anon */
+	bool can_swap;
+	/* first scan for freshly added mm_struct */
+	bool full_scan;
+	/* the total number of batched pages */
+	int batched;
+	/* the number of batched pages per generation */
+	int nr_pages[MAX_NR_GENS][ANON_AND_FILE][MAX_NR_ZONES];
+	/* the next address within the current vma */
+	unsigned long next_addr;
+	/* to batch promoted pages */
+	unsigned long bitmap[BITS_TO_LONGS(MIN_LRU_BATCH)];
+	/* the stats for page table walker */
+	unsigned long mm_stats[NR_MM_STATS];
+};
+
 void lru_gen_init_lruvec(struct lruvec *lruvec);
 void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
 void *lru_gen_eviction(struct page *page);
@@ -425,6 +478,8 @@ struct lruvec {
 #ifdef CONFIG_LRU_GEN
 	/* evictable pages divided into generations */
 	struct lru_gen_struct		lrugen;
+	/* to concurrently iterate lru_gen_mm_list */
+	struct lru_gen_mm_state		mm_state;
 #endif
 #ifdef CONFIG_MEMCG
 	struct pglist_data *pgdat;
@@ -910,6 +965,11 @@ typedef struct pglist_data {
 	struct lruvec		lruvec;
 
 	unsigned long		flags;
+
+#ifdef CONFIG_LRU_GEN
+	/* kswap mm walk data */
+	struct lru_gen_mm_walk	mm_walk;
+#endif
 
 	ZONE_PADDING(_pad2_)
 
