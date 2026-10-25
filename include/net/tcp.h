@@ -2493,4 +2493,28 @@ static inline u64 tcp_transmit_time(const struct sock *sk)
 	return 0;
 }
 
+/* PLB (Protective Load Balancing) is intentionally disabled/stubbed for BBRv3 */
+struct tcp_plb_state {
+	u32 pause_until;
+};
+
+static inline void tcp_plb_init(const struct sock *sk, struct tcp_plb_state *plb)
+{
+	plb->pause_until = 0;
+}
+
+static inline void tcp_plb_update_state(const struct sock *sk,
+					struct tcp_plb_state *plb, int ce_ratio)
+{
+}
+
+static inline void tcp_plb_check_rehash(struct sock *sk, struct tcp_plb_state *plb)
+{
+}
+
+static inline void tcp_plb_update_state_upon_rto(const struct sock *sk,
+						 struct tcp_plb_state *plb)
+{
+}
+
 #endif	/* _TCP_H */
