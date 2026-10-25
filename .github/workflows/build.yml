@@ -23,6 +23,7 @@ on:
       - remove-ksu
       - bakasu-manual-hook
       - silver-floor
+      - bbrv3-backport
     paths-ignore:
       - '**.md'
       - '.gitignore'
