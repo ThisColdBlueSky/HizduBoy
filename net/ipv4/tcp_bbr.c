@@ -84,7 +84,7 @@
 #endif
 
 /* PLB is intentionally disabled/stubbed on this kernel */
-#define sysctl_tcp_plb_enabled 0
+#define tcp_plb_enabled(net) 0
 
 #define bbr_param(sk,name)	(bbr_ ## name)
 
@@ -1100,8 +1100,7 @@ static int bbr_update_ecn_alpha(struct sock *sk)
 
 	/* Skip updating alpha only if not ECN-eligible and PLB is disabled. */
 	want_ecn_alpha = (bbr->ecn_eligible ||
-			  (bbr_can_use_ecn(sk) &&
-			   READ_ONCE(net->ipv4.sysctl_tcp_plb_enabled)));
+			  (bbr_can_use_ecn(sk) && tcp_plb_enabled(net)));
 	if (!want_ecn_alpha)
 		return -1;
 

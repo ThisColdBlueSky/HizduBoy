@@ -1265,6 +1265,16 @@ static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
 }
 
+static inline u32 tcp_snd_cwnd(const struct tcp_sock *tp)
+{
+	return tp->snd_cwnd;
+}
+
+static inline void tcp_snd_cwnd_set(struct tcp_sock *tp, u32 val)
+{
+	tp->snd_cwnd = val;
+}
+
 #define TCP_INFINITE_SSTHRESH	0x7fffffff
 
 static inline bool tcp_in_slow_start(const struct tcp_sock *tp)
@@ -2494,6 +2504,7 @@ static inline u64 tcp_transmit_time(const struct sock *sk)
 }
 
 /* PLB (Protective Load Balancing) is intentionally disabled/stubbed for BBRv3 */
+#define TCP_PLB_SCALE 8
 struct tcp_plb_state {
 	u32 pause_until;
 };
