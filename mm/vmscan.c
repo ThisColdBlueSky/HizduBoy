@@ -1989,6 +1989,7 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
 		lru = page_lru(page);
 
 		nr_pages = hpage_nr_pages(page);
+		list_del(&page->lru);
 		add_page_to_lru_list(page, lruvec, lru);
 
 		if (put_page_testzero(page)) {
