@@ -84,7 +84,14 @@
 #endif
 
 /* PLB is intentionally disabled/stubbed on this kernel */
-#define tcp_plb_enabled(net) 0
+static inline bool tcp_plb_enabled(const struct net *net)
+{
+	return false;
+}
+
+#ifndef get_random_u32_below
+#define get_random_u32_below(ceil) prandom_u32_max(ceil)
+#endif
 
 #define bbr_param(sk,name)	(bbr_ ## name)
 
@@ -2047,7 +2054,7 @@ static bool bbr_run_fast_path(struct sock *sk, bool *update_model,
 	return false;
 }
 
-__bpf_kfunc static void bbr_main(struct sock *sk, u32 ack, int flag,
+__bpf_kfunc static void bbr_main(struct sock *sk,
 				 const struct rate_sample *rs)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
