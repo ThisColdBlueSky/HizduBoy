@@ -105,6 +105,13 @@ struct scan_control {
 	/* One of the zones is ready for compaction */
 	unsigned int compaction_ready:1;
 
+#ifdef CONFIG_LRU_GEN
+	/* help make better choices when multiple memcgs are available */
+	unsigned int memcgs_need_aging:1;
+	unsigned int memcgs_need_swapping:1;
+	unsigned int memcgs_avoid_swapping:1;
+#endif
+
 	/* Allocation order */
 	s8 order;
 
@@ -3783,6 +3790,7 @@ static void inc_max_seq(struct lruvec *lruvec)
 	for (type = 0; type < ANON_AND_FILE; type++)
 		reset_ctrl_pos(lruvec, type, false);
 
+	WRITE_ONCE(lrugen->timestamps[next], jiffies);
 	/* make sure preceding modifications appear */
 	smp_store_release(&lrugen->max_seq, lrugen->max_seq + 1);
 
@@ -3893,7 +3901,8 @@ static long get_nr_evictable(struct lruvec *lruvec, unsigned long max_seq,
 	return total > 0 ? total : 0;
 }
 
-static void age_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+static bool age_lruvec(struct lruvec *lruvec, struct scan_control *sc,
+		       unsigned long min_ttl)
 {
 	bool need_aging;
 	long nr_to_scan;
@@ -3903,12 +3912,20 @@ static void age_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	DEFINE_MAX_SEQ(lruvec);
 	DEFINE_MIN_SEQ(lruvec);
 
+	if (min_ttl) {
+		int gen = lru_gen_from_seq(min_seq[LRU_GEN_FILE]);
+		unsigned long birth = READ_ONCE(lruvec->lrugen.timestamps[gen]);
+
+		if (time_is_after_jiffies(birth + min_ttl))
+			return false;
+	}
+
 	if (prot == MEMCG_PROT_MIN)
-		return;
+		return false;
 
 	nr_to_scan = get_nr_evictable(lruvec, max_seq, min_seq, swappiness, &need_aging);
 	if (!nr_to_scan)
-		return;
+		return false;
 
 	nr_to_scan >>= sc->priority;
 
@@ -3917,13 +3934,36 @@ static void age_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 
 	if (nr_to_scan && need_aging && (prot != MEMCG_PROT_LOW || sc->memcg_low_reclaim))
 		try_to_inc_max_seq(lruvec, max_seq, sc, swappiness, false);
+
+	return true;
 }
+
+/* to protect the working set of the last N jiffies */
+static unsigned long lru_gen_min_ttl __read_mostly;
 
 static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
 {
 	struct mem_cgroup *memcg;
+	bool success = false;
+	unsigned long min_ttl = READ_ONCE(lru_gen_min_ttl);
 
 	VM_BUG_ON(!current_is_kswapd());
+
+	/*
+	 * To reduce the chance of going into the aging path or swapping, which
+	 * can be costly, optimistically skip them unless their corresponding
+	 * flags were cleared in the eviction path. This improves the overall
+	 * performance when multiple memcgs are available.
+	 */
+	if (!sc->memcgs_need_aging) {
+		sc->memcgs_need_aging = true;
+		sc->memcgs_avoid_swapping = !sc->memcgs_need_swapping;
+		sc->memcgs_need_swapping = true;
+		return;
+	}
+
+	sc->memcgs_need_swapping = true;
+	sc->memcgs_avoid_swapping = true;
 
 	current->reclaim_state->mm_walk = &pgdat->mm_walk;
 
@@ -3931,12 +3971,29 @@ static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
 	do {
 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
 
-		age_lruvec(lruvec, sc);
+		if (age_lruvec(lruvec, sc, min_ttl))
+			success = true;
 
 		cond_resched();
 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
 
 	current->reclaim_state->mm_walk = NULL;
+
+	/*
+	 * The main goal is to OOM kill if every generation from all memcgs is
+	 * younger than min_ttl. However, another theoretical possibility is all
+	 * memcgs are either below min or empty.
+	 */
+	if (!success && mutex_trylock(&oom_lock)) {
+		struct oom_control oc = {
+			.gfp_mask = sc->gfp_mask,
+			.order = sc->order,
+		};
+
+		out_of_memory(&oc);
+
+		mutex_unlock(&oom_lock);
+	}
 }
 
 /*
@@ -4304,7 +4361,8 @@ static int isolate_pages(struct lruvec *lruvec, struct scan_control *sc, int swa
 	return scanned;
 }
 
-static int evict_pages(struct lruvec *lruvec, struct scan_control *sc, int swappiness)
+static int evict_pages(struct lruvec *lruvec, struct scan_control *sc, int swappiness,
+		       bool *swapped)
 {
 	int type;
 	int scanned;
@@ -4364,6 +4422,9 @@ static int evict_pages(struct lruvec *lruvec, struct scan_control *sc, int swapp
 
 	sc->nr_reclaimed += reclaimed;
 
+	if (type == LRU_GEN_ANON && swapped)
+		*swapped = true;
+
 	return scanned;
 }
 
@@ -4387,8 +4448,10 @@ static long get_nr_to_scan(struct lruvec *lruvec, struct scan_control *sc, bool 
 	if (!nr_to_scan)
 		return 0;
 
-	if (!need_aging)
+	if (!need_aging) {
+		sc->memcgs_need_aging = false;
 		return nr_to_scan;
+	}
 
 	if (current_is_kswapd())
 		return 0;
@@ -4403,6 +4466,8 @@ static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc
 {
 	struct blk_plug plug;
 	long scanned = 0;
+	bool swapped = false;
+	unsigned long reclaimed = sc->nr_reclaimed;
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 
 	lru_add_drain();
@@ -4428,13 +4493,19 @@ static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc
 		if (!nr_to_scan)
 			break;
 
-		delta = evict_pages(lruvec, sc, swappiness);
+		delta = evict_pages(lruvec, sc, swappiness, &swapped);
 		if (!delta)
 			break;
 
-		scanned += delta;
-		if (scanned >= nr_to_scan)
+		if (sc->memcgs_avoid_swapping && swappiness < 200 && swapped)
 			break;
+
+		scanned += delta;
+		if (scanned >= nr_to_scan) {
+			if (!swapped && sc->nr_reclaimed - reclaimed >= MIN_LRU_BATCH)
+				sc->memcgs_need_swapping = false;
+			break;
+		}
 
 		cond_resched();
 	}
@@ -4451,10 +4522,14 @@ static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc
 
 void lru_gen_init_lruvec(struct lruvec *lruvec)
 {
+	int i;
 	int gen, type, zone;
 	struct lru_gen_struct *lrugen = &lruvec->lrugen;
 
 	lrugen->max_seq = MIN_NR_GENS + 1;
+
+	for (i = 0; i <= MIN_NR_GENS + 1; i++)
+		lrugen->timestamps[i] = jiffies;
 
 	for_each_gen_type_zone(gen, type, zone)
 		INIT_LIST_HEAD(&lrugen->lists[gen][type][zone]);
