@@ -24,6 +24,7 @@ on:
       - bakasu-manual-hook
       - silver-floor
       - mglru-backport
+      - mglru-exec-protect
     paths-ignore:
       - '**.md'
       - '.gitignore'
@@ -207,6 +208,10 @@ jobs:
           cp "${ZIP_NAME}.sha256" build_output/
           cp out/arch/arm64/boot/Image "build_output/Image_${VARIANT}"
           cp "$DTB_PATH" build_output/dtb
+          if [ -f out/vmlinux ]; then
+            echo "Archiving unstripped vmlinux..."
+            gzip -c out/vmlinux > build_output/vmlinux.gz
+          fi
 
       - name: Upload Build Artifacts
         if: steps.check_variant.outputs.should_run == 'true'
