@@ -4631,6 +4631,8 @@ static bool drain_evictable(struct lruvec *lruvec)
 
 			success = lru_gen_del_page(lruvec, page, false);
 			VM_BUG_ON(!success);
+			if (gen != lru_gen_from_seq(lruvec->lrugen.max_seq))
+				ClearPageActive(page);
 			add_page_to_lru_list(page, lruvec, page_lru(page));
 
 			if (!--remaining)

@@ -208,9 +208,11 @@ jobs:
           cp "${ZIP_NAME}.sha256" build_output/
           cp out/arch/arm64/boot/Image "build_output/Image_${VARIANT}"
           cp "$DTB_PATH" build_output/dtb
+
+          mkdir -p vmlinux_output
           if [ -f out/vmlinux ]; then
             echo "Archiving unstripped vmlinux..."
-            gzip -c out/vmlinux > build_output/vmlinux.gz
+            gzip -c out/vmlinux > vmlinux_output/vmlinux.gz
           fi
 
       - name: Upload Build Artifacts
@@ -219,6 +221,14 @@ jobs:
         with:
           name: HizduBoy-veux-${{ matrix.variant }}
           path: build_output/*
+          retention-days: 7
+
+      - name: Upload vmlinux Debug Artifact
+        if: steps.check_variant.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmlinux-${{ matrix.variant }}
+          path: vmlinux_output/*
           retention-days: 7
 
   release:
