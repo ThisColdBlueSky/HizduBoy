@@ -3871,7 +3871,8 @@ done:
 	if (!success) {
 		if (!current_is_kswapd() && !sc->priority)
 			wait_event_killable(lruvec->mm_state.wait,
-					    max_seq < READ_ONCE(lrugen->max_seq));
+					    max_seq < READ_ONCE(lrugen->max_seq) ||
+					    !lru_gen_enabled());
 
 		return max_seq < READ_ONCE(lrugen->max_seq);
 	}
@@ -4648,6 +4649,7 @@ static void lru_gen_change_state(bool enable)
 	static DEFINE_MUTEX(state_mutex);
 
 	struct mem_cgroup *memcg;
+	int nid;
 
 	cgroup_lock();
 	cpus_read_lock();
@@ -4664,8 +4666,6 @@ static void lru_gen_change_state(bool enable)
 
 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
 	do {
-		int nid;
-
 		for_each_node(nid) {
 			struct pglist_data *pgdat = NODE_DATA(nid);
 			struct lruvec *lruvec = get_lruvec(memcg, nid);
@@ -4696,6 +4696,17 @@ static void lru_gen_change_state(bool enable)
 
 		cond_resched();
 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
+
+	if (!enable) {
+		memcg = mem_cgroup_iter(NULL, NULL, NULL);
+		do {
+			for_each_node(nid) {
+				struct lruvec *lruvec = get_lruvec(memcg, nid);
+				if (lruvec)
+					wake_up_all(&lruvec->mm_state.wait);
+			}
+		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
+	}
 unlock:
 	mutex_unlock(&state_mutex);
 	put_online_mems();
