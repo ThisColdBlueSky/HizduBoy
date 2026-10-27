@@ -1308,12 +1308,10 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 	lru_size = &mz->lru_zone_size[zid][lru];
 
 	if (nr_pages < 0) {
-		if (*lru_size < (unsigned long)-nr_pages) {
-			WARN_ON_ONCE(1);
+		if (*lru_size < (unsigned long)-nr_pages)
 			*lru_size = 0;
-		} else {
+		else
 			*lru_size += nr_pages;
-		}
 	} else if (nr_pages > 0) {
 		*lru_size += nr_pages;
 	}
