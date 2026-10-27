@@ -2077,6 +2077,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	__count_memcg_events(lruvec_memcg(lruvec), item, nr_scanned);
 	spin_unlock_irq(&pgdat->lru_lock);
 
+	if (unlikely(nr_taken == 0 && nr_scanned == 0)) {
+		pr_warn_ratelimited("shrink_inactive_list: nr_taken=0 nr_scanned=0 lru=%d lruvec_size=%lu empty=%d\n",
+				    lru, lruvec_lru_size(lruvec, lru, sc->reclaim_idx),
+				    list_empty(&lruvec->lists[lru]));
+	}
+
 	if (nr_taken == 0)
 		return 0;
 
@@ -4632,7 +4638,9 @@ static bool drain_evictable(struct lruvec *lruvec)
 
 			success = lru_gen_del_page(lruvec, page, false);
 			VM_BUG_ON(!success);
-			if (gen != lru_gen_from_seq(lruvec->lrugen.max_seq))
+			if (lru_gen_is_active(lruvec, gen))
+				SetPageActive(page);
+			else
 				ClearPageActive(page);
 			add_page_to_lru_list(page, lruvec, page_lru(page));
 
