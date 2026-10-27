@@ -25,6 +25,7 @@ on:
       - silver-floor
       - mglru-backport
       - mglru-exec-protect
+      - mglru-refault-fix
     paths-ignore:
       - '**.md'
       - '.gitignore'
