@@ -2077,10 +2077,23 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	__count_memcg_events(lruvec_memcg(lruvec), item, nr_scanned);
 	spin_unlock_irq(&pgdat->lru_lock);
 
-	if (unlikely(nr_taken == 0 && nr_scanned == 0)) {
-		pr_warn_ratelimited("shrink_inactive_list: nr_taken=0 nr_scanned=0 lru=%d lruvec_size=%lu empty=%d\n",
-				    lru, lruvec_lru_size(lruvec, lru, sc->reclaim_idx),
-				    list_empty(&lruvec->lists[lru]));
+	if (unlikely(!nr_scanned && !nr_taken)) {
+		static unsigned long last;
+
+		if (time_after(jiffies, last + HZ)) {
+			int g, t, z;
+			unsigned long gsum = 0;
+
+			last = jiffies;
+			for (g = 0; g < MAX_NR_GENS; g++)
+				for (t = 0; t < ANON_AND_FILE; t++)
+					for (z = 0; z < MAX_NR_ZONES; z++)
+						gsum += lruvec->lrugen.nr_pages[g][t][z];
+			pr_err("dbg: lru=%d size=%lu idx=%d empty=%d gen_en=%d gsum=%lu memcg=%p\n",
+			       lru, lruvec_lru_size(lruvec, lru, sc->reclaim_idx),
+			       sc->reclaim_idx, list_empty(&lruvec->lists[lru]),
+			       lruvec->lrugen.enabled, gsum, lruvec_memcg(lruvec));
+		}
 	}
 
 	if (nr_taken == 0)
@@ -4732,6 +4745,66 @@ static void lru_gen_change_state(bool enable)
 				 */
 				lruvec->refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
 				memset(&lruvec->reclaim_stat, 0, sizeof(lruvec->reclaim_stat));
+
+				/*
+				 * Audit and resynchronize legacy LRU sizes against actual list contents.
+				 * Drain demotion or generation shifts while MGLRU was active can
+				 * desynchronize mz->lru_zone_size from the actual list nodes.
+				 */
+				{
+					enum lru_list l;
+					int g, t, z;
+					unsigned long gsum = 0;
+
+					for (g = 0; g < MAX_NR_GENS; g++) {
+						for (t = 0; t < ANON_AND_FILE; t++) {
+							for (z = 0; z < MAX_NR_ZONES; z++) {
+								gsum += lruvec->lrugen.nr_pages[g][t][z];
+								if (!list_empty(&lruvec->lrugen.lists[g][t][z]))
+									pr_err("drain leak: gen list not empty! memcg=%p g=%d t=%d z=%d\n",
+									       memcg, g, t, z);
+							}
+						}
+					}
+					if (gsum)
+						pr_err("drain leak: memcg=%p gsum=%lu remaining in gens!\n", memcg, gsum);
+
+					for (l = 0; l < NR_LRU_LISTS; l++) {
+						unsigned long actual_size[MAX_NR_ZONES] = { 0 };
+						struct page *page;
+
+						list_for_each_entry(page, &lruvec->lists[l], lru) {
+							int zid = page_zonenum(page);
+							if (zid < MAX_NR_ZONES)
+								actual_size[zid] += compound_nr(page);
+						}
+
+						for (z = 0; z < MAX_NR_ZONES; z++) {
+							unsigned long old_size;
+
+							if (!mem_cgroup_disabled())
+								old_size = mem_cgroup_get_zone_lru_size(lruvec, l, z);
+							else
+								old_size = zone_page_state(&pgdat->node_zones[z], NR_ZONE_LRU_BASE + l);
+
+							if (old_size != actual_size[z]) {
+								long delta = (long)actual_size[z] - (long)old_size;
+
+								pr_err("drain resync: memcg=%p nid=%d lru=%d z=%d old=%lu actual=%lu delta=%ld\n",
+								       memcg, nid, l, z, old_size, actual_size[z], delta);
+
+								if (!mem_cgroup_disabled()) {
+									struct mem_cgroup_per_node *mz;
+									mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+									mz->lru_zone_size[z][l] = actual_size[z];
+								}
+
+								if (delta > -10000000L && delta < 10000000L)
+									__update_lru_size(lruvec, l, z, (int)delta);
+							}
+						}
+					}
+				}
 
 				if (pgdat)
 					spin_unlock_irq(&pgdat->lru_lock);
