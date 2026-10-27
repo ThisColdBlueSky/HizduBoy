@@ -4701,9 +4701,32 @@ static void lru_gen_change_state(bool enable)
 		memcg = mem_cgroup_iter(NULL, NULL, NULL);
 		do {
 			for_each_node(nid) {
+				struct pglist_data *pgdat = NODE_DATA(nid);
 				struct lruvec *lruvec = get_lruvec(memcg, nid);
-				if (lruvec)
-					wake_up_all(&lruvec->mm_state.wait);
+
+				if (!lruvec)
+					continue;
+
+				wake_up_all(&lruvec->mm_state.wait);
+
+				if (pgdat)
+					spin_lock_irq(&pgdat->lru_lock);
+
+				/*
+				 * Reset refault baseline and reclaim statistics for legacy reclaim.
+				 * While MGLRU was enabled, snapshot_refaults() was bypassed while
+				 * sort_page() incremented WORKINGSET_ACTIVATE. Syncing refaults
+				 * prevents inactive_list_is_low() from seeing a refault delta and
+				 * forcing inactive_ratio = 0 on runtime MGLRU disable.
+				 *
+				 * Also zero reclaim_stat (recent_scanned / recent_rotated) which
+				 * were not maintained by MGLRU during eviction.
+				 */
+				lruvec->refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
+				memset(&lruvec->reclaim_stat, 0, sizeof(lruvec->reclaim_stat));
+
+				if (pgdat)
+					spin_unlock_irq(&pgdat->lru_lock);
 			}
 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
 	}
@@ -5363,12 +5386,9 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	sc->gfp_mask = orig_mask;
 }
 
-static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
+static void __snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
 {
 	struct mem_cgroup *memcg;
-
-	if (lru_gen_enabled())
-		return;
 
 	memcg = mem_cgroup_iter(root_memcg, NULL, NULL);
 	do {
@@ -5379,6 +5399,14 @@ static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
 		refaults = lruvec_page_state_local(lruvec, WORKINGSET_ACTIVATE);
 		lruvec->refaults = refaults;
 	} while ((memcg = mem_cgroup_iter(root_memcg, memcg, NULL)));
+}
+
+static void snapshot_refaults(struct mem_cgroup *root_memcg, pg_data_t *pgdat)
+{
+	if (lru_gen_enabled())
+		return;
+
+	__snapshot_refaults(root_memcg, pgdat);
 }
 
 /*
