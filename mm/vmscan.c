@@ -4680,6 +4680,8 @@ static void lru_gen_change_state(bool enable)
 	if (enable == lru_gen_enabled())
 		goto unlock;
 
+	lru_add_drain_all();
+
 	if (enable)
 		static_branch_enable_cpuslocked(&lru_gen_caps[LRU_GEN_CORE]);
 	else
@@ -4719,6 +4721,7 @@ static void lru_gen_change_state(bool enable)
 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
 
 	if (!enable) {
+		lru_add_drain_all();
 		memcg = mem_cgroup_iter(NULL, NULL, NULL);
 		do {
 			for_each_node(nid) {
