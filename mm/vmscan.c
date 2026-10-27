@@ -4672,6 +4672,8 @@ static void lru_gen_change_state(bool enable)
 	struct mem_cgroup *memcg;
 	int nid;
 
+	lru_add_drain_all();
+
 	cgroup_lock();
 	cpus_read_lock();
 	get_online_mems();
@@ -4679,8 +4681,6 @@ static void lru_gen_change_state(bool enable)
 
 	if (enable == lru_gen_enabled())
 		goto unlock;
-
-	lru_add_drain_all();
 
 	if (enable)
 		static_branch_enable_cpuslocked(&lru_gen_caps[LRU_GEN_CORE]);
@@ -4719,6 +4719,12 @@ static void lru_gen_change_state(bool enable)
 
 		cond_resched();
 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
+
+unlock:
+	mutex_unlock(&state_mutex);
+	put_online_mems();
+	cpus_read_unlock();
+	cgroup_unlock();
 
 	if (!enable) {
 		lru_add_drain_all();
@@ -4814,11 +4820,6 @@ static void lru_gen_change_state(bool enable)
 			}
 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
 	}
-unlock:
-	mutex_unlock(&state_mutex);
-	put_online_mems();
-	cpus_read_unlock();
-	cgroup_unlock();
 }
 
 /******************************************************************************
