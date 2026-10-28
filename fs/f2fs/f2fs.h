@@ -4203,6 +4203,7 @@ static inline void f2fs_truncate_meta_inode_pages(struct f2fs_sb_info *sbi,
 					block_t blkaddr, unsigned int cnt)
 {
 	bool need_submit = false;
+	bool found = false;
 	int i = 0;
 
 	do {
@@ -4210,6 +4211,7 @@ static inline void f2fs_truncate_meta_inode_pages(struct f2fs_sb_info *sbi,
 
 		page = find_get_page(META_MAPPING(sbi), blkaddr + i);
 		if (page) {
+			found = true;
 			if (PageWriteback(page))
 				need_submit = true;
 			f2fs_put_page(page, 0);
@@ -4220,7 +4222,8 @@ static inline void f2fs_truncate_meta_inode_pages(struct f2fs_sb_info *sbi,
 		f2fs_submit_merged_write_cond(sbi, sbi->meta_inode,
 							NULL, 0, DATA);
 
-	truncate_inode_pages_range(META_MAPPING(sbi),
+	if (found || need_submit)
+		truncate_inode_pages_range(META_MAPPING(sbi),
 			F2FS_BLK_TO_BYTES((loff_t)blkaddr),
 			F2FS_BLK_END_BYTES((loff_t)(blkaddr + cnt - 1)));
 }
