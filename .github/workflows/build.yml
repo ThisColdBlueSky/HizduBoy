@@ -26,6 +26,7 @@ on:
       - mglru-backport
       - mglru-exec-protect
       - mglru-refault-fix
+      - f2fs-backport
     paths-ignore:
       - '**.md'
       - '.gitignore'
