@@ -149,7 +149,7 @@ jobs:
 
           if [ "${{ matrix.variant }}" = "ksu" ]; then
             echo "Enabling KernelSU (CONFIG_KSU=y)..."
-            bash ./scripts/config --file out/.config -e KSU
+            bash ./scripts/config --file out/.config -e KSU -e DEBUG_KERNEL -e KALLSYMS -e KALLSYMS_ALL
           else
             echo "Disabling KernelSU (CONFIG_KSU not set)..."
             bash ./scripts/config --file out/.config -d KSU
