@@ -72,21 +72,6 @@ jobs:
             echo "Skipping $CURRENT_EDITION / $CURRENT_VARIANT (target: variant=$TARGET_VARIANT edition=$TARGET_EDITION)"
           fi
 
-      - name: Free Disk Space & Setup 16GB Swap
-        if: steps.check_variant.outputs.should_run == 'true'
-        run: |
-          echo "Freeing disk space..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
-          
-          echo "Setting up 16GB swap file to prevent OOM during LTO link..."
-          sudo swapoff -a || true
-          sudo rm -f /swapfile
-          sudo fallocate -l 16G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=16384
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          free -h
-
       - name: Checkout Source Code
         if: steps.check_variant.outputs.should_run == 'true'
         uses: actions/checkout@v4
@@ -105,7 +90,7 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
 
           if [ "${{ matrix.edition }}" = "plus" ]; then
-            echo "DEFCONFIG=HizduBoy_defconfig" >> $GITHUB_ENV
+            echo "DEFCONFIG=hizduboy_defconfig" >> $GITHUB_ENV
             echo "ZIP_PREFIX=HizduBoy-veux-plus" >> $GITHUB_ENV
           else
             echo "DEFCONFIG=veux_defconfig" >> $GITHUB_ENV
@@ -146,14 +131,6 @@ jobs:
 
           llvm/bin/clang --version
           llvm/bin/ld.lld --version
-
-      - name: Setup ccache
-        if: steps.check_variant.outputs.should_run == 'true'
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ${{ matrix.edition }}-${{ matrix.variant }}-${{ github.sha }}
-          restore-keys: ${{ matrix.edition }}-${{ matrix.variant }}-
-          max-size: 4G
 
       - name: Configure Kernel
         if: steps.check_variant.outputs.should_run == 'true'
