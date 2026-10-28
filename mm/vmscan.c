@@ -4766,11 +4766,13 @@ unlock:
 							if (old_size != actual_size[z]) {
 								long delta = (long)actual_size[z] - (long)old_size;
 
+#ifdef CONFIG_MEMCG
 								if (!mem_cgroup_disabled()) {
 									struct mem_cgroup_per_node *mz;
 									mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
 									mz->lru_zone_size[z][l] = actual_size[z];
 								}
+#endif
 
 								if (delta > -10000000L && delta < 10000000L)
 									__update_lru_size(lruvec, l, z, (int)delta);
