@@ -15,7 +15,7 @@ on:
       create_release:
         description: 'Publish GitHub Release'
         required: false
-        default: true
+        default: false
         type: boolean
   push:
     branches:
@@ -100,13 +100,31 @@ jobs:
             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
             git libssl-dev libelf-dev lz4 xz-utils zip bsdiff python3
 
-      - name: Download & Set up Clang (LLVM 22.1.7)
+      - name: Download & Set up latest LLVM
         if: steps.check_variant.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           mkdir -p llvm
-          echo "Downloading ClangBuiltLinux LLVM ..."
-          curl -sSL --retry 3 "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/LLVM-23.1.4-Linux-X64.tar.xz" | tar -xJ --strip-components=1 -C llvm
+
+          URL=$(curl -sSL --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/llvm/llvm-project/releases/latest \
+            | jq -r '.assets[] | select(.name | test("^LLVM-[0-9.]+-Linux-X64\\.tar\\.xz$")) | .browser_download_url' \
+            | head -n 1)
+
+          if [ -z "$URL" ]; then
+            echo "::error::Could not find a Linux-X64 LLVM asset in the latest release"
+            exit 1
+          fi
+
+          echo "Downloading $URL"
+          curl -sSL --retry 3 "$URL" | tar -xJ --strip-components=1 -C llvm
           echo "$GITHUB_WORKSPACE/llvm/bin" >> $GITHUB_PATH
+
+          llvm/bin/clang --version
+          llvm/bin/ld.lld --version
 
       - name: Setup ccache
         if: steps.check_variant.outputs.should_run == 'true'
@@ -240,9 +258,9 @@ jobs:
     permissions:
       contents: write
     if: |
-      always() &&
       needs.build.result == 'success' &&
-      (github.event_name == 'push' || inputs.create_release == true || inputs.create_release == 'true')
+      github.event_name == 'workflow_dispatch' &&
+      inputs.create_release == true
 
     steps:
       - name: Checkout Source Code
