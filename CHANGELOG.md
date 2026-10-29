@@ -25,7 +25,7 @@ Changes after f4b8a13
 ## Performance
 - Backport Multi-Gen LRU (Mglru): add arch_has_hw_pte_young, generation-based page tracking, aging/eviction, PID controller, rmap spatial locality, page table walkers, mm_struct tracking, multi-memcg optimization, thrashing prevention (2e13188)
 - Backport F2fs fixes and optimizations: fsync deadloop, atomic write checkpoint inconsistency, inline data/dentry fixes, node/metadata readahead optimization, UAF fix, deadlock fixes, orphan inode validation, sanity checks, remove superblock freeze for flush thread (d12a977)
-- - Backported optimised arm64 string routines (memcpy/memmove, memcmp, strcmp, strncmp, strlen, memchr) from upstream
+- Backported optimised arm64 string routines (memcpy/memmove, memcmp, strcmp, strncmp, strlen, memchr) from upstream
 
 ## Config/Defconfig
 - Enable MEMCG, container prerequisites (PID/IPC/USER namespaces, cgroup device/cpuacct/bpf), FAIR_GROUP_SCHED, CFS_BANDWIDTH, and fix config_data.gz generation (eb1e5f6)
