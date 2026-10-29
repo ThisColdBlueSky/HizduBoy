@@ -1,4 +1,4 @@
-Changes after f4b8a13 up to d12a977 (2026-10-28)
+Changes after f4b8a13
 
 ## Features
 - Add lindroid-drm loopback driver (EVDI-based virtual display) (e6b7c86)
