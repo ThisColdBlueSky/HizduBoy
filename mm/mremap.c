@@ -756,8 +756,6 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 		       uf_unmap);
 
 out1:
-	vm_unacct_memory(charged);
-
 out:
 	return ret;
 }
