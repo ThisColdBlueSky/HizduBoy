@@ -30,6 +30,7 @@ on:
     branches:
       - main
       - arm64-string-backport
+      - maple-tree-backport
     paths-ignore:
       - '**.md'
       - '.gitignore'
