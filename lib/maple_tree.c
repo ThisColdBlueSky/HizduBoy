@@ -55,6 +55,7 @@
 #include <linux/xarray.h>
 #include <linux/types.h>
 #include <linux/export.h>
+#include <linux/lockdep.h>
 #include <linux/slab.h>
 #include <linux/limits.h>
 #include <asm/barrier.h>
