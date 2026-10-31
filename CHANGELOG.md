@@ -23,6 +23,7 @@ Changes after f4b8a13
 - Enable DEBUG_KERNEL in defconfig so KALLSYMS_ALL survives olddefconfig (89bf4cb)
 
 ## Performance
+- Upgrade LZ4 library to latest unified upstream with ARM64 NEON hardware-accelerated decompression, per-CPU core dispatch, -O3/LZ4_FAST_DEC_LOOP optimization, and kernel mode NEON decompression for zram/EROFS (f091292)
 - Backport Multi-Gen LRU (Mglru): add arch_has_hw_pte_young, generation-based page tracking, aging/eviction, PID controller, rmap spatial locality, page table walkers, mm_struct tracking, multi-memcg optimization, thrashing prevention (2e13188)
 - Backport F2fs fixes and optimizations: fsync deadloop, atomic write checkpoint inconsistency, inline data/dentry fixes, node/metadata readahead optimization, UAF fix, deadlock fixes, orphan inode validation, sanity checks, remove superblock freeze for flush thread (d12a977)
 - Backported optimised arm64 string routines (memcpy/memmove, memcmp, strcmp, strncmp, strlen, memchr) from upstream
@@ -37,6 +38,7 @@ Changes after f4b8a13
 - Add USB gadget net configs (ECM, RNDIS, EEM, subset) and NETFILTER_XTABLES to veux_defconfig (880a55b)
 
 ## Upstream Merges
+- Upgraded LZ4 to latest upstream unified implementation with ARM64 NEON assembly routines (f091292)
 - Merged upstream Linux Mglru (multi-gen LRU) backport for 5.4 kernel (2e13188)
 - Merged upstream Linux F2fs backport: fsync, atomic write, inline data, readahead, stability/concurrency fixes (d12a977)
 
